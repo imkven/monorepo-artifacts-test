@@ -12,7 +12,7 @@ module.exports = {
     {
       name: "docs",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3000",
+      args: "start -p 3001",
       cwd: "./apps/docs",
       env: {
         NODE_ENV: "production",
