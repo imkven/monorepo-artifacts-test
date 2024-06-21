@@ -38,7 +38,7 @@ jobs:
         working-directory: ./apps/docs
 
       - name: Archive production artifacts
-        run: tar -czf production-artifacts.tar.gz ./apps/web/.next ./apps/docs/.next ./ecosystem.config.js
+        run: tar -czf production-artifacts.tar.gz ./pnpm-workspace.yaml ./pnpm-lock.yaml ./packages ./apps/web/.next ./apps/web/public ./apps/web/package.json ./apps/docs/.next ./apps/docs/public ./apps/docs/package.json ./ecosystem.config.js
         working-directory: ./
 
       - name: Upload artifacts
@@ -83,10 +83,16 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          scp -i key.pem production-artifacts.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/${{ secrets.VPS_PATH }}/production-artifacts.tar.gz
+          scp -i key.pem production-artifacts.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root
           ssh -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            cd /root/${{ secrets.VPS_PATH }}  
+            cd /root 
             tar -xf ./production-artifacts.tar.gz -C ./
+            pnpm i
+            cd /root/apps/web
+            pnpm i
+            cd /root/apps/docs
+            pnpm i
+            cd /root
             pm2 startOrReload ecosystem.config.js
             pm2 save
           EOF
