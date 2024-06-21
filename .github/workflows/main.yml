@@ -65,6 +65,7 @@ jobs:
         run: |
           echo "${{ secrets.VPS_SSH_KEY }}" > key.pem
           chmod 600 key.pem
+          ssh-keyscan ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
           ssh -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             apk add --no-cache nodejs npm
             npm install -g pnpm pm2
@@ -77,6 +78,7 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
+          ssh-keyscan ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
           scp -i key.pem production-artifacts.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/${{ secrets.VPS_PATH }} 
           scp -i key.pem ecosystem.config.js ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/${{ secrets.VPS_PATH }}  
           ssh -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
