@@ -1,0 +1,88 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main # Trigger the workflow on push to the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04 # GitHub Actions runner is still Ubuntu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "21.7.1"
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies for web
+        run: pnpm install
+        working-directory: ./apps/web
+
+      - name: Build web
+        run: pnpm build
+        working-directory: ./apps/web
+
+      - name: Install dependencies for docs
+        run: pnpm install
+        working-directory: ./apps/docs
+
+      - name: Build docs
+        run: pnpm build
+        working-directory: ./apps/docs
+
+      - name: Archive production artifacts
+        run: tar -czf production-artifacts.tar.gz -C ./apps/web/.next . -C ./apps/docs/.next . -C ./ecosystem.config.js .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-artifacts
+          path: production-artifacts.tar.gz
+
+  deploy:
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: production-artifacts
+
+      - name: Ensure pnpm is installed on VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          echo "${{ secrets.VPS_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+          ssh -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            apk add --no-cache nodejs npm
+            npm install -g pnpm pm2
+          EOF
+        shell: bash
+
+      - name: Deploy to VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          scp -i key.pem production-artifacts.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/${{ secrets.VPS_PATH }} 
+          scp -i key.pem ecosystem.config.js ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/${{ secrets.VPS_PATH }}  
+          ssh -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            cd /root/${{ secrets.VPS_PATH }}  
+            tar -xzf production-artifacts.tar.gz
+            # Use pm2 to start or restart applications
+            pm2 startOrReload ecosystem.config.js
+            pm2 save
+          EOF
+        shell: bash
