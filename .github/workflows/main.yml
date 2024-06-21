@@ -38,7 +38,7 @@ jobs:
         working-directory: ./apps/docs
 
       - name: Archive production artifacts
-        run: tar -czf production-artifacts.tar.gz -C ./apps/web/.next -C ./apps/docs/.next
+        run: tar -czf production-artifacts.tar.gz ./apps/web/.next ./apps/docs/.next ./ecosystem.config.js
         working-directory: ./
 
       - name: Upload artifacts
